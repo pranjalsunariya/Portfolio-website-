@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List | Pranjal Sunariya</title>
+  <meta name="description" content="An interactive to-do list app with local storage persistence, built by Pranjal Sunariya.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .todo-container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .todo-input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .todo-input-row input {
+      flex: 1;
+    }
+
+    .todo-input-row button {
+      background-color: var(--header-bg);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .filters button {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 6px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+
+    .filters button.active {
+      background-color: var(--header-bg);
+      color: #fff;
+      border-color: var(--header-bg);
+    }
+
+    #todo-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #todo-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      padding: 10px 12px;
+      border-radius: 6px;
+    }
+
+    #todo-list li.completed span.task-text {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    #todo-list li span.task-text {
+      flex: 1;
+      word-break: break-word;
+    }
+
+    #todo-list li button {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    #empty-message {
+      text-align: center;
+      opacity: 0.7;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <header>
+    <h1>Pranjal Sunariya</h1>
+    <p>Web Developer</p>
+
+    <nav aria-label="Main navigation">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="todo.html" aria-current="page">To-Do List</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+    <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+  </header>
+
+  <main id="main">
+    <section aria-labelledby="todo-heading">
+      <h2 id="todo-heading">To-Do List</h2>
+
+      <div class="todo-container">
+
+        <form id="todo-form" class="todo-input-row">
+          <label for="task-input" class="visually-hidden">Add a new task</label>
+          <input type="text" id="task-input" placeholder="Add a new task..." required aria-label="New task">
+          <button type="submit">Add</button>
+        </form>
+
+        <div class="filters" role="group" aria-label="Filter tasks">
+          <button type="button" class="filter-btn active" data-filter="all">All</button>
+          <button type="button" class="filter-btn" data-filter="active">Active</button>
+          <button type="button" class="filter-btn" data-filter="completed">Completed</button>
+        </div>
+
+        <ul id="todo-list" aria-live="polite"></ul>
+        <p id="empty-message">No tasks yet. Add one above!</p>
+
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Pranjal Sunariya. All rights reserved.</p>
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
+
+  <script>
+    // ---- To-Do List Logic ----
+    const STORAGE_KEY = 'pranjal-todo-tasks';
+    let tasks = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let currentFilter = 'all';
+
+    const listEl = document.getElementById('todo-list');
+    const formEl = document.getElementById('todo-form');
+    const inputEl = document.getElementById('task-input');
+    const emptyMsg = document.getElementById('empty-message');
+    const filterButtons = document.querySelectorAll('.filter-btn');
+
+    function saveTasks() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function render() {
+      listEl.innerHTML = '';
+
+      let filtered = tasks;
+      if (currentFilter === 'active') {
+        filtered = tasks.filter(t => !t.completed);
+      } else if (currentFilter === 'completed') {
+        filtered = tasks.filter(t => t.completed);
+      }
+
+      emptyMsg.style.display = filtered.length === 0 ? 'block' : 'none';
+
+      filtered.forEach(task => {
+        const li = document.createElement('li');
+        li.dataset.id = task.id;
+        if (task.completed) li.classList.add('completed');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = task.completed;
+        checkbox.setAttribute('aria-label', 'Mark task as completed');
+        checkbox.dataset.action = 'toggle';
+
+        const span = document.createElement('span');
+        span.className = 'task-text';
+        span.textContent = task.text;
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✏️';
+        editBtn.setAttribute('aria-label', 'Edit task');
+        editBtn.dataset.action = 'edit';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.setAttribute('aria-label', 'Delete task');
+        deleteBtn.dataset.action = 'delete';
+
+        li.append(checkbox, span, editBtn, deleteBtn);
+        listEl.appendChild(li);
+      });
+    }
+
+    // Create (add new task)
+    formEl.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      tasks.push({
+        id: Date.now().toString(),
+        text: text,
+        completed: false
+      });
+
+      inputEl.value = '';
+      saveTasks();
+      render();
+    });
+
+    // Delegated events: toggle, edit, delete
+    listEl.addEventListener('click', function(e) {
+      const action = e.target.dataset.action;
+      const li = e.target.closest('li');
+      if (!li) return;
+      const id = li.dataset.id;
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+
+      if (action === 'toggle') {
+        task.completed = !task.completed;
+        saveTasks();
+        render();
+      }
+
+      if (action === 'delete') {
+        tasks = tasks.filter(t => t.id !== id);
+        saveTasks();
+        render();
+      }
+
+      if (action === 'edit') {
+        const newText = prompt('Edit task:', task.text);
+        if (newText !== null && newText.trim() !== '') {
+          task.text = newText.trim();
+          saveTasks();
+          render();
+        }
+      }
+    });
+
+    // Also handle checkbox change (some browsers fire 'change' not 'click' reliably)
+    listEl.addEventListener('change', function(e) {
+      if (e.target.dataset.action === 'toggle') {
+        const li = e.target.closest('li');
+        const id = li.dataset.id;
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+          task.completed = e.target.checked;
+          saveTasks();
+          render();
+        }
+      }
+    });
+
+    // Filters
+    filterButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        filterButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    render();
+  </script>
+
+</body>
+</html>
