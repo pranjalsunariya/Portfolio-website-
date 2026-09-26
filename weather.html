@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Dashboard | Pranjal Sunariya</title>
+  <meta name="description" content="A real-time weather dashboard fetching live data via a public REST API, built by Pranjal Sunariya.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .weather-container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .search-row input {
+      flex: 1;
+    }
+
+    .search-row button {
+      background-color: var(--header-bg);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    #status-message {
+      text-align: center;
+      margin-bottom: 15px;
+      min-height: 20px;
+    }
+
+    #status-message.error {
+      color: #d33;
+      font-weight: bold;
+    }
+
+    #weather-result {
+      display: none;
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    #weather-result h3 {
+      margin-bottom: 5px;
+      font-size: 1.4rem;
+    }
+
+    #weather-result .temp {
+      font-size: 3rem;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .metric-box {
+      background: var(--aside-bg);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .metric-box .label {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+
+    .metric-box .value {
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--header-bg);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <header>
+    <h1>Pranjal Sunariya</h1>
+    <p>Web Developer</p>
+
+    <nav aria-label="Main navigation">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="todo.html">To-Do List</a></li>
+        <li><a href="weather.html" aria-current="page">Weather</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+    <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+  </header>
+
+  <main id="main">
+    <section aria-labelledby="weather-heading">
+      <h2 id="weather-heading">Weather Dashboard</h2>
+
+      <div class="weather-container">
+
+        <form id="weather-form" class="search-row">
+          <label for="city-input" class="visually-hidden">City name</label>
+          <input type="text" id="city-input" placeholder="Enter city name (e.g. Delhi)" required aria-label="City name">
+          <button type="submit">Search</button>
+        </form>
+
+        <div id="status-message" role="status" aria-live="polite"></div>
+
+        <div id="weather-result">
+          <h3 id="city-name"></h3>
+          <p id="weather-desc"></p>
+          <div class="temp" id="temperature"></div>
+
+          <div class="metrics-grid">
+            <div class="metric-box">
+              <div class="label">Humidity</div>
+              <div class="value" id="humidity">--</div>
+            </div>
+            <div class="metric-box">
+              <div class="label">Wind Speed</div>
+              <div class="value" id="wind-speed">--</div>
+            </div>
+            <div class="metric-box">
+              <div class="label">Feels Like</div>
+              <div class="value" id="feels-like">--</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Pranjal Sunariya. All rights reserved.</p>
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
+
+  <script>
+    // ---- Weather Dashboard Logic ----
+    const form = document.getElementById('weather-form');
+    const cityInput = document.getElementById('city-input');
+    const statusMsg = document.getElementById('status-message');
+    const resultBox = document.getElementById('weather-result');
+
+    const weatherCodeMap = {
+      0: 'Clear sky',
+      1: 'Mainly clear',
+      2: 'Partly cloudy',
+      3: 'Overcast',
+      45: 'Fog',
+      48: 'Depositing rime fog',
+      51: 'Light drizzle',
+      53: 'Moderate drizzle',
+      55: 'Dense drizzle',
+      61: 'Slight rain',
+      63: 'Moderate rain',
+      65: 'Heavy rain',
+      71: 'Slight snow',
+      73: 'Moderate snow',
+      75: 'Heavy snow',
+      80: 'Rain showers',
+      81: 'Moderate rain showers',
+      82: 'Violent rain showers',
+      95: 'Thunderstorm',
+      96: 'Thunderstorm with hail',
+      99: 'Severe thunderstorm'
+    };
+
+    async function getWeather(city) {
+      resultBox.style.display = 'none';
+      statusMsg.className = '';
+      statusMsg.innerHTML = '<span class="spinner"></span> Fetching weather...';
+
+      try {
+        // Step 1: Convert city name to coordinates (geocoding)
+        const geoRes = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
+        );
+
+        if (!geoRes.ok) {
+          throw new Error('Geocoding service unavailable. Please try again.');
+        }
+
+        const geoData = await geoRes.json();
+
+        if (!geoData.results || geoData.results.length === 0) {
+          throw new Error(`City "${city}" not found. Check spelling and try again.`);
+        }
+
+        const place = geoData.results[0];
+        const { latitude, longitude, name, country } = place;
+
+        // Step 2: Fetch weather using coordinates
+        const weatherRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code`
+        );
+
+        if (!weatherRes.ok) {
+          throw new Error('Weather service unavailable. Please try again later.');
+        }
+
+        const weatherData = await weatherRes.json();
+        const current = weatherData.current;
+
+        // Render results
+        document.getElementById('city-name').textContent = `${name}, ${country}`;
+        document.getElementById('weather-desc').textContent =
+          weatherCodeMap[current.weather_code] || 'Unknown conditions';
+        document.getElementById('temperature').textContent = `${Math.round(current.temperature_2m)}°C`;
+        document.getElementById('humidity').textContent = `${current.relative_humidity_2m}%`;
+        document.getElementById('wind-speed').textContent = `${current.wind_speed_10m} km/h`;
+        document.getElementById('feels-like').textContent = `${Math.round(current.apparent_temperature)}°C`;
+
+        statusMsg.textContent = '';
+        resultBox.style.display = 'block';
+
+      } catch (error) {
+        statusMsg.className = 'error';
+        statusMsg.textContent = error.message || 'Something went wrong. Please try again.';
+        resultBox.style.display = 'none';
+      }
+    }
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const city = cityInput.value.trim();
+      if (!city) return;
+      getWeather(city);
+    });
+  </script>
+
+</body>
+</html>
